@@ -1,55 +1,15 @@
+mod ia;
+mod board;
+
+use std::env;
 use std::io;
-use std::fmt;
 use regex::Regex;
 
-#[derive(Copy, Clone, PartialEq, Eq)]
-enum TileState {
-    TileStateEmpty,
-    TileStateCross,
-    TileStateRound,
-}
-
-// Define a structure for which `fmt::Display` will be implemented. This is
-// a tuple struct named `Structure` that contains an `i32`.
 #[derive(Copy, Clone)]
-struct Board
+struct GameSettings
 {
-    board : [TileState; 9],
+    ia_opponent: bool,
 }
-
-// To use the `{}` marker, the trait `fmt::Display` must be implemented
-// manually for the type.
-impl fmt::Display for Board {
-    // This trait requires `fmt` with this exact signature.
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        // Write strictly the first element into the supplied output
-        // stream: `f`. Returns `fmt::Result` which indicates whether the
-        // operation succeeded or failed. Note that `write!` uses syntax which
-        // is very similar to `println!`.
-        write!(f, "    1 - 2 - 3\n{}:  {} | {} | {}\n   -----------\n{}:  {} | {} | {}\n   -----------\n{}:  {} | {} | {}",
-        "A", self.board[0], self.board[1], self.board[2],
-        "B", self.board[3], self.board[4], self.board[5],
-        "C", self.board[6], self.board[7], self.board[8])
-    }
-}
-
-
-impl fmt::Display for TileState {
-    // This trait requires `fmt` with this exact signature.
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        // Write strictly the first element into the supplied output
-        // stream: `f`. Returns `fmt::Result` which indicates whether the
-        // operation succeeded or failed. Note that `write!` uses syntax which
-        // is very similar to `println!`.
-        
-        match self {
-            TileState::TileStateEmpty => write!(f, "{}", ' '),
-            TileState::TileStateCross => write!(f, "{}", 'X'),
-            TileState::TileStateRound => write!(f, "{}", 'O'),
-            }
-    }
-}
-
 
 fn display_welcome() {
     println!("");
@@ -62,69 +22,10 @@ fn display_welcome() {
     println!("");
 }
 
-
-fn diplay_board(board: Board) {
+fn display_board(board: board::Board) {
     
     println!("{board}");
     println!("\n");
-}
-
-fn is_board_full(board: Board) -> bool {
-
-    return board.board
-                .iter()
-                .any(|&f| f == TileState::TileStateEmpty) == false;
-}
-
-fn is_line_achieved(board: Board) -> bool {
-    
-    // 1-Perform horizontal checks
-    
-    if board.board.iter().step_by(3).all(|&x| x == TileState::TileStateCross) || 
-       board.board.iter().step_by(3).all(|&x| x == TileState::TileStateRound) {
-        return true;
-    }
-    
-    if board.board.iter().skip(1).step_by(3).all(|&x| x == TileState::TileStateCross) || 
-       board.board.iter().skip(1).step_by(3).all(|&x| x == TileState::TileStateRound) {
-        return true;
-    }
-    
-    if board.board.iter().skip(2).step_by(3).all(|&x| x == TileState::TileStateCross) || 
-       board.board.iter().skip(2).step_by(3).all(|&x| x == TileState::TileStateRound) {
-        return true;
-    }
-    
-    // 2-Perform vertical checks
-    
-    if board.board.iter().take(3).all(|&x| x == TileState::TileStateCross) || 
-       board.board.iter().take(3).all(|&x| x == TileState::TileStateRound) {
-        return true;
-    }
-    
-    if board.board.iter().skip(3).take(3).all(|&x| x == TileState::TileStateCross) || 
-       board.board.iter().skip(3).take(3).all(|&x| x == TileState::TileStateRound) {
-        return true;
-    }
-    
-    if board.board.iter().skip(6).take(3).all(|&x| x == TileState::TileStateCross) || 
-       board.board.iter().skip(6).take(3).all(|&x| x == TileState::TileStateRound) {
-        return true;
-    }
-    
-    // 3-Perform diagonal checks
-    
-    if board.board.iter().step_by(4).all(|&x| x == TileState::TileStateCross) || 
-       board.board.iter().step_by(4).all(|&x| x == TileState::TileStateRound) {
-        return true;
-    }
-    
-    if board.board.iter().skip(2).step_by(2).take(3).all(|&x| x == TileState::TileStateCross) || 
-       board.board.iter().skip(2).step_by(2).take(3).all(|&x| x == TileState::TileStateRound) {
-        return true;
-    }
-    
-    return false;
 }
 
 // This is written with regex which is a complete insanity given the simplicity of the task
@@ -142,14 +43,14 @@ fn parse_user_entry(buffer: String) -> Result<usize, String> {
                 "A" => line = 0,
                 "B" => line = 1,
                 "C" => line = 2,
-                &_ => return Err(String::from("Unexpected !!"))
+                _ => return Err(String::from("Unexpected !!"))
             }
             
             match caps.get(2).unwrap().as_str() {
                 "1" => column = 0,
                 "2" => column = 1,
                 "3" => column = 2,
-                &_ => return Err(String::from("Unexpected !!"))
+                _ => return Err(String::from("Unexpected !!"))
             }
         }
         None => return Err(String::from("Invalid line or column"))
@@ -158,49 +59,97 @@ fn parse_user_entry(buffer: String) -> Result<usize, String> {
     return Ok(3 * line + column)
 }
 
+fn get_move_from_human() -> Result<usize, String> {
+    let mut buffer : String = String::new();
+
+    let line = io::stdin().read_line(&mut buffer);
+    match line {
+        Ok(_) => {},
+        Err(error) => panic!("Invalid entry from player, error: {error}"),
+    }
+
+    parse_user_entry(buffer)
+}
+
+fn get_move_from_ia(board: board::Board, ia_tile_state: board::TileState) -> Result<usize, String> {
+    
+    let index = ia::get_move(board, ia_tile_state);
+
+    match index {
+        // index 8 should be derived from board.board but Rust won't allow a runtime defined value
+        0..=8 => Ok(index),
+        _ => Err("Invalid index returned by IA engine".into()),
+    }
+}
+
+fn parse_arguments(args: Vec<String>) -> GameSettings
+{
+    let mut ia_opponent_setting = false;
+
+    for arg in args.iter() {
+        if arg.eq("solo") {
+            ia_opponent_setting = true;
+        }
+    }
+
+    GameSettings { 
+        ia_opponent: ia_opponent_setting
+    }
+}
+
 fn main() {
+    let args: Vec<String> = env::args().collect();
+
+    let game_settings = parse_arguments(args);
     
-    let mut _board = Board {
-        board: [TileState::TileStateEmpty, TileState::TileStateEmpty, TileState::TileStateEmpty, 
-                TileState::TileStateEmpty, TileState::TileStateEmpty, TileState::TileStateEmpty,
-                TileState::TileStateEmpty, TileState::TileStateEmpty, TileState::TileStateEmpty]
-    };
+    let mut board= Default::default();
     
-    let mut player : TileState = TileState::TileStateRound;    
+    let mut current_player : board::TileState = board::TileState::TileStateCross;
+    let mut last_player : board::TileState = board::TileState::TileStateEmpty;
+
+    let computer_player;
+
+    if game_settings.ia_opponent {
+        computer_player = board::TileState::TileStateRound;
+    }
+    else {
+        computer_player = board::TileState::TileStateEmpty;
+    }
 
     display_welcome();
     
-    while is_board_full(_board) == false && 
-          is_line_achieved(_board) == false {
+    while board::is_board_full(board) == false && 
+          board::is_line_achieved(board) == false {
     
-        diplay_board(_board);
-        
-        let mut buffer : String = String::new();
+        display_board(board);
 
-        match io::stdin().read_line(&mut buffer) {
-            Ok(_) => {},
-            Err(error) => {
-                println!("error: {error}");
-                break;
-            }
+        let player_move_index;
+
+        if game_settings.ia_opponent &&
+           current_player == computer_player {
+            player_move_index = get_move_from_ia(board, computer_player);
+        }
+        else {
+            player_move_index = get_move_from_human();
         }
         
-        match parse_user_entry(buffer) {
-            Ok(parsed_index) => {
+        match player_move_index {
+            Ok(index) => {
                 // TODO-improv: Find how Rust manages out-of-bounds assignment idiomatically
-                if _board.board[parsed_index] != TileState::TileStateEmpty
+                if board.board[index].tile_state != board::TileState::TileStateEmpty
                 {
                     println!("This box is already taken, please play again");
                     continue;
                 }
                         
-                if player == TileState::TileStateCross {
-                    player = TileState::TileStateRound;
+                board.board[index].tile_state = current_player;
+                
+                last_player = current_player;
+                if current_player == board::TileState::TileStateCross {
+                    current_player = board::TileState::TileStateRound;
                 } else {
-                    player = TileState::TileStateCross;
+                    current_player = board::TileState::TileStateCross;
                 } 
-        
-                _board.board[parsed_index] = player;
             },
             Err(error) => {
                 println!("error: {error}");
@@ -209,12 +158,12 @@ fn main() {
         }
     }
     
-    diplay_board(_board);
+    display_board(board);
 
-    if is_line_achieved(_board) == false {
+    if board::is_line_achieved(board) == false {
         println!("It's a draw");
     }
     else {
-        println!("Victory for {player} !");        
+        println!("Victory for {last_player} !");
     }
 }
