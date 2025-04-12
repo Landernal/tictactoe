@@ -1,6 +1,28 @@
 use crate::board::{self, TileState};
+use strum::IntoEnumIterator;
+use strum_macros::EnumIter;
 
-fn fill_in_segment_or_block_opponent(board: board::Board, ia_tile_state: board::TileState) -> Option<usize> {
+// List strategies in the hierarchical order they must be processed
+#[derive(EnumIter)]
+enum StrategyType {
+    StrategyManageLastTileOnSegment,
+    StrategyFirstFreeTile,
+}
+
+impl StrategyType {
+    pub fn get_index_using_strategy(&self, board: &board::Board, ia_tile_state: board::TileState) -> Option<usize> {
+        match self {
+            StrategyType::StrategyManageLastTileOnSegment => fill_in_segment_or_block_opponent(board, ia_tile_state),
+            
+            // Default strategy
+            StrategyType::StrategyFirstFreeTile => 
+                board.board.iter().position(|&x| x.tile_state == board::TileState::TileStateEmpty),
+        }
+    }
+}
+
+/// Complete a segment, either to win or to avoid defeat
+fn fill_in_segment_or_block_opponent(board: &board::Board, ia_tile_state: board::TileState) -> Option<usize> {
 
     let mut returned_index = Option::None;
 
@@ -87,15 +109,39 @@ fn fill_in_segment_or_block_opponent(board: board::Board, ia_tile_state: board::
     return returned_index;
 }
 
-pub fn get_move(board: board::Board, ia_tile_state: board::TileState) -> usize {
-
-    // Complete a segment, either to win or to avoid defeat
-    if let Some(index) = fill_in_segment_or_block_opponent(board, ia_tile_state) {
-        return index;
+pub fn get_move(board: &board::Board, ia_tile_state: board::TileState) -> usize {
+    for strategy in StrategyType::iter() {
+        if let Some(index) = strategy.get_index_using_strategy(board, ia_tile_state) {
+            return index;
+        } 
     }
     
-    // Default : return first free tile
-    board.board.iter()
-        .position(|&x| x.tile_state == board::TileState::TileStateEmpty)
-        .unwrap()   // If this case is to happen, let the program panic
+    panic!("No strategy could work !!!");
+}
+
+#[cfg(test)]
+mod tests_ia
+{
+    use crate::{board::{Board, Tile, TileState}, ia::get_move};
+
+    #[test]
+    fn test_sequence_a1_a3_b2() {
+        let board = Board {
+            board: [ 
+                Tile{ tile_state: TileState::TileStateCross, index_in_board: 0 },   // A1: player
+                Tile{ tile_state: TileState::TileStateRound, index_in_board: 1 },   // A2: ia
+                Tile{ tile_state: TileState::TileStateCross, index_in_board: 2 },   // A3: player
+                Tile{ tile_state: TileState::TileStateRound, index_in_board: 3 },   // B1: ia
+                Tile{ tile_state: TileState::TileStateCross, index_in_board: 4 },   // B2: player
+                Tile{ tile_state: TileState::TileStateEmpty, index_in_board: 5 },
+                Tile{ tile_state: TileState::TileStateEmpty, index_in_board: 6 },
+                Tile{ tile_state: TileState::TileStateEmpty, index_in_board: 7 },
+                Tile{ tile_state: TileState::TileStateEmpty, index_in_board: 8 },
+            ], 
+        };
+
+        let next_move = get_move(&board, TileState::TileStateRound);
+
+        assert_eq!(next_move, 6);
+    }
 }

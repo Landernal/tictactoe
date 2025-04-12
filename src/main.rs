@@ -66,7 +66,7 @@ fn get_move_from_human() -> Result<usize, String> {
     parse_user_entry(&buffer)
 }
 
-fn get_move_from_ia(board: board::Board, ia_tile_state: TileState) -> Result<usize, String> {
+fn get_move_from_ia(board: &board::Board, ia_tile_state: TileState) -> Result<usize, String> {
     match ia::get_move(board, ia_tile_state) {
         // index 8 should be derived from board.board but Rust won't allow a runtime defined value
         index @ 0..=8 => Ok(index),
@@ -104,7 +104,7 @@ fn main() {
         display_board(board);
 
         let player_move_index = if current_player == computer_player {
-            get_move_from_ia(board, computer_player)
+            get_move_from_ia(&board, computer_player)
         }
         else {
             get_move_from_human()
