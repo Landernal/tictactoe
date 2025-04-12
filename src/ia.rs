@@ -8,13 +8,13 @@ fn fill_in_segment_or_block_opponent(board: board::Board, ia_tile_state: board::
 
     for line_index in 0..=2 {
         let line = board.get_line(line_index).unwrap();
-        let empty_tiles: Vec<&board::Tile> = line.iter().filter(|&x| x.tile_state == TileState::TileStateEmpty).collect();
+        let (empty_tiles, not_empty_tiles): (Vec<&board::Tile>, Vec<&board::Tile>) = line.iter()
+            .map(|x| *x)    // Dereference once to get a vector of &Tile
+            .partition(|&x| x.tile_state == TileState::TileStateEmpty);
 
         if empty_tiles.len() != 1 {
             continue;
         }
-
-        let not_empty_tiles: Vec<&board::Tile> = line.iter().filter(|&x| x.tile_state != TileState::TileStateEmpty).collect();
 
         if not_empty_tiles[0].tile_state != not_empty_tiles[1].tile_state {
             continue;
@@ -34,13 +34,13 @@ fn fill_in_segment_or_block_opponent(board: board::Board, ia_tile_state: board::
 
     for column_index in 0..=2 {
         let column = board.get_column(column_index).unwrap();
-        let empty_tiles: Vec<&board::Tile> = column.iter().filter(|&x| x.tile_state == TileState::TileStateEmpty).collect();
+        let (empty_tiles, not_empty_tiles): (Vec<&board::Tile>, Vec<&board::Tile>) = column.iter()
+            .map(|x| *x)    // Dereference once to get a vector of &Tile
+            .partition(|&x| x.tile_state == TileState::TileStateEmpty);
 
         if empty_tiles.len() != 1 {
             continue;
         }
-
-        let not_empty_tiles: Vec<&board::Tile> = column.iter().filter(|&x| x.tile_state != TileState::TileStateEmpty).collect();
 
         if not_empty_tiles[0].tile_state != not_empty_tiles[1].tile_state {
             continue;
@@ -60,13 +60,13 @@ fn fill_in_segment_or_block_opponent(board: board::Board, ia_tile_state: board::
 
     for diagonal_index in 0..=1 {
         let diagonal = board.get_diagonal(diagonal_index).unwrap();
-        let empty_tiles: Vec<&board::Tile> = diagonal.iter().filter(|&x| x.tile_state == TileState::TileStateEmpty).collect();
+        let (empty_tiles, not_empty_tiles): (Vec<&board::Tile>, Vec<&board::Tile>) = diagonal.iter()
+            .map(|x| *x)    // Dereference once to get a vector of &Tile
+            .partition(|&x| x.tile_state == TileState::TileStateEmpty);
 
         if empty_tiles.len() != 1 {
             continue;
         }
-
-        let not_empty_tiles: Vec<&board::Tile> = diagonal.iter().filter(|&x| x.tile_state != TileState::TileStateEmpty).collect();
 
         if not_empty_tiles[0].tile_state != not_empty_tiles[1].tile_state {
             continue;
@@ -90,9 +90,8 @@ fn fill_in_segment_or_block_opponent(board: board::Board, ia_tile_state: board::
 pub fn get_move(board: board::Board, ia_tile_state: board::TileState) -> usize {
 
     // Complete a segment, either to win or to avoid defeat
-    match fill_in_segment_or_block_opponent(board, ia_tile_state) {
-        Some(index) => return index,
-        None => {}
+    if let Some(index) = fill_in_segment_or_block_opponent(board, ia_tile_state) {
+        return index;
     }
     
     // Default : return first free tile
